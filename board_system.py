@@ -13,8 +13,13 @@ def get_connection():
     if password is None:
         raise ValueError('DB_PASSWORD를 찾을 수 없습니다')
 
-    conn = pymysql.connect(host="127.0.0.1", user="root", port=3306,
-                           password=password, database="mysqlDB", charset="utf8")
+    conn = pymysql.connect(
+        host="127.0.0.1",
+        user="root",
+        port=3306,
+        password=password,
+        database="mysqlDB",
+        charset="utf8")
     return conn
 
 # 2. 테이블 만들기
