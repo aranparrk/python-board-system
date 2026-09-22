@@ -56,10 +56,128 @@ def drop_table(conn):
     print('테이블 삭제 성공!')
     cur.close()
 
+# 회원가입
+def signup(conn):
+    cur = conn.cursor()
 
+    while True:
+        user_id = input('아이디 : ')
+
+        # 아이디 중복 체크
+        cur.execute(
+            'SELECT id FROM userTable WHERE id = %s',
+            (user_id,)
+        )
+
+        result = cur.fetchone()
+
+        if result is not None:
+            print('이미 존재하는 아이디 입니다.')
+            # 아이디가 중복이면 아이디 재입력
+            continue
+
+        break
+
+    user_pwd = input('비밀번호 : ')
+    user_name = input('이름 : ')
+    user_email = input('이메일 : ')
+    user_addr = input('주소 : ')
+
+    # 아이디가 중복이 아니면 회원 정보 추가
+    cur.execute(
+        '''
+        INSERT INTO userTable (id, pwd, name, email, addr)
+        VALUES (%s, %s, %s, %s, %s)
+        ''',
+        (user_id, user_pwd, user_name, user_email, user_addr)
+    )
+
+    conn.commit()
+    cur.close()
+
+    print(f'{user_id}님 회원가입 완료 되었습니다.')
+
+# 로그인
+def login(conn):
+    # SQL를 실행하기 위한 커서 생성
+    cur = conn.cursor()
+
+    while True:
+        user_id = input('아이디 : ')
+        user_pwd = input('비밀번호 : ')
+
+        # 로그인한 아이디가 DB에 있는지 확인
+        cur.execute(
+            'SELECT id, pwd FROM userTable WHERE id = %s',
+            (user_id,)
+        )
+
+        # 조회한 값을 result에 저장
+        # result는 조회된 한 행이 튜플 형태로 반환됨 ('아이디', '비밀번호')
+        result = cur.fetchone()
+
+        # ID가 존재하지 않는 경우
+        if result is None:
+            print('존재하지 않는 아이디 입니다.')
+            continue
+
+        # ID가 존재 하는 경우
+        else:
+            # 비밀번호가 맞는지 체크
+            if result[1] == user_pwd:
+                print()
+                print(f'🎉 {result[0]}님, 로그인 성공! 환영합니다! 😆')
+                # 조회 결과를 가져온 뒤 커서를 닫는다
+                cur.close()
+
+                return user_id
+            else:
+                print('비밀번호가 틀렸습니다.')
+                continue
 
 # 코드 실행
 def main():
+    # 로그인 상태
+    current_user = None
+
+    conn = get_connection()
+
+    while True:
+        if current_user is None:
+            print('[1] 로그인')
+            print('[2] 회원가입')
+            print('[0] 종료')
+
+            menu_num = input('메뉴 번호를 입력하세요. : ')
+
+            if not menu_num.isdigit():
+                print('번호를 입력해주세요.')
+                continue
+            else:
+                menu_num = int(menu_num)
+
+            if menu_num == 1:
+                current_user = login(conn)
+            elif menu_num == 2:
+                signup(conn)
+            elif menu_num == 0:
+                print('프로그램을 종료합니다.')
+                break
+            else:
+                print('존재 하지 않는 메뉴 입니다.')
+        else:
+            # 게시판 메뉴
+            print()
+            print('[1] 게시글 작성')
+            print('[2] 게시글 목록')
+            print('[3] 게시글 상세 조회')
+            print('[4] 댓글 작성')
+            print('[5] 게시글 삭제')
+            print('[6] 로그아웃')
+            print('[0] 종료')
+
+            menu_num = input('메뉴 번호를 입력하세요. : ')
+
     conn = get_connection()
     drop_table(conn)
     create_board_table(conn)
