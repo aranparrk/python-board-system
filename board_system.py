@@ -4,10 +4,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+
 # 1. DB 연결
 def get_connection():
+    password = os.getenv('DB_PASSWORD')
+
+    if password is None:
+        raise ValueError('DB_PASSWORD를 찾을 수 없습니다')
+
     conn = pymysql.connect(host="127.0.0.1", user="root", port=3306,
-                           password=os.getenv('DB_PASSWORD'), database="mysqlDB", charset="utf8")
+                           password=password, database="mysqlDB", charset="utf8")
     return conn
 
 # 2. 테이블 만들기
