@@ -135,6 +135,43 @@ def login(conn):
                 print('비밀번호가 틀렸습니다.')
                 continue
 
+# 게시글 작성
+def write_post(conn, current_user):
+    cur = conn.cursor()
+
+    title = input('제목을 입력하세요. : ')
+    contents = input('내용을 입력하세요. : ')
+
+    cur.execute(
+        '''
+        INSERT INTO boardTable (title, contents, board_writer)
+        VALUES (%s, %s, %s)
+        '''
+        ,(title, contents, current_user)
+
+    )
+
+    conn.commit()
+    cur.close()
+
+    print('게시글이 등록되었습니다.')
+
+# 게시글 목록
+def list_posts(conn):
+    pass
+
+# 게시글 상세 조회
+def view_post(conn):
+    pass
+
+# 댓글 작성
+def write_comment(conn, current_user):
+    pass
+
+# 게시글 삭제
+def delete_post(conn, current_user):
+    pass
+
 # 코드 실행
 def main():
     # 로그인 상태
@@ -153,11 +190,13 @@ def main():
             if not menu_num.isdigit():
                 print('번호를 입력해주세요.')
                 continue
-            else:
-                menu_num = int(menu_num)
 
+            menu_num = int(menu_num)
+
+            # 로그인
             if menu_num == 1:
                 current_user = login(conn)
+            # 회원가입
             elif menu_num == 2:
                 signup(conn)
             elif menu_num == 0:
@@ -176,7 +215,20 @@ def main():
             print('[6] 로그아웃')
             print('[0] 종료')
 
+
             menu_num = input('메뉴 번호를 입력하세요. : ')
+
+            if not menu_num.isdigit():
+                print('번호를 입력하세요.')
+                continue
+
+            menu_num = int(menu_num)
+
+            # 게시글 작성
+            if menu_num == 1:
+                write_post(conn, current_user)
+
+
 
     conn = get_connection()
     drop_table(conn)
