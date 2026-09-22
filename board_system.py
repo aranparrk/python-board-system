@@ -1,9 +1,13 @@
 import pymysql
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # 1. DB 연결
 def get_connection():
     conn = pymysql.connect(host="127.0.0.1", user="root", port=3306,
-                           password="12341234", database="mysqlDB", charset="utf8")
+                           password=os.getenv('DB_PASSWORD'), database="mysqlDB", charset="utf8")
     return conn
 
 # 2. 테이블 만들기
@@ -182,15 +186,129 @@ def list_posts(conn):
 
 # 게시글 상세 조회
 def view_post(conn):
-    pass
+    cur = conn.cursor()
+
+    while True:
+        board_no = input('조회하려는 글 번호를 입력하세요 : ')
+
+        if not board_no.isdigit():
+            print('번호를 입력해주세요.')
+            continue
+
+        board_no = int(board_no)
+
+        cur.execute(
+            '''
+            SELECT a.board_no, a.title, a.reg_date, a.contents, c.name, b.comment, b.reg_date 
+            FROM boardTable a 
+            LEFT JOIN commentTable b
+                ON a.board_no = b.board_no
+            LEFT JOIN userTable c
+                ON c.id = b.comment_writer
+            WHERE a.board_no = %s
+            ''',
+            (board_no,)
+        )
+
+        rows = cur.fetchall()
+
+        if not rows:
+            print('해당 게시물을 찾을 수 없습니다.')
+        else:
+            print('-' * 50)
+            print(f'제목 | {rows[0][0]} {rows[0][1]}\t{rows[0][2]}')
+            print(f'내용 | {rows[0][3]}')
+            print('-' * 50)
+            # 댓글이 없는 경우
+            if rows[0][5] is None:
+                print('등록된 댓글이 없습니다.')
+            else:
+                for row in rows:
+                    print(f'{row[4]} | {row[5]} | {row[6]}')
+
+            cur.close()
+            break
 
 # 댓글 작성
 def write_comment(conn, current_user):
-    pass
+    cur = conn.cursor()
+
+    while True:
+        board_no = input('댓글 작성하려는 글 번호를 입력하세요. :')
+
+        if not board_no.isdigit():
+            print('번호를 입력해주세요.')
+            continue
+
+        board_no = int(board_no)
+
+        cur.execute('SELECT board_writer FROM boardTable WHERE board_no = %s', (board_no,))
+
+        result = cur.fetchone()
+
+        if result is None:
+            print('게시글이 존재하지 않습니다.')
+            continue
+
+        contents = input('댓글을 입력하세요.')
+
+        # 게시글이 존재하면 댓글 작성
+        cur.execute(
+            '''
+            INSERT INTO commentTable (board_no, comment_writer, comment)
+            VALUES (%s, %s, %s)
+            ''',
+            (board_no, current_user, contents)
+        )
+
+        conn.commit()
+        cur.close()
+        print('댓글이 작성 되었습니다.')
+        break
 
 # 게시글 삭제
 def delete_post(conn, current_user):
-    pass
+    cur = conn.cursor()
+
+    while True:
+        board_no = input('삭제하려는 글 번호를 입력하세요. : ')
+
+        if not board_no.isdigit():
+            print('번호를 입력하세요.')
+            continue
+
+        board_no = int(board_no)
+
+        # 게시글이 존재하는지 확인
+        cur.execute(
+            'SELECT board_writer FROM boardTable WHERE board_no = %s',
+            (board_no,)
+        )
+
+        result = cur.fetchone()
+
+        # 게시글이 없는 경우
+        if result is None:
+            print('해당 게시물을 찾을 수 없습니다.')
+            continue
+
+        # 로그인한 사용자와 게시글 작성자가 다른 경우
+        if result[0] != current_user:
+            print('본인이 작성한 게시글만 삭제할 수 있습니다.')
+            cur.close()
+            break
+
+        # 본인이 작성한 게시글이면 삭제
+        cur.execute(
+            'DELETE FROM boardTable WHERE board_no = %s',
+            (board_no,)
+        )
+
+        conn.commit()
+        cur.close()
+
+        print('게시글이 삭제되었습니다.')
+        break
 
 # 코드 실행
 def main():
@@ -250,8 +368,25 @@ def main():
             # 게시글 조회
             elif menu_num == 2:
                 list_posts(conn)
-
-
+            # 게시물 상세 조회
+            elif menu_num == 3:
+                view_post(conn)
+            # 댓글 작성
+            elif menu_num == 4:
+                write_comment(conn, current_user)
+            # 게시글 삭제
+            elif menu_num == 5:
+                delete_post(conn, current_user)
+            # 로그아웃
+            elif menu_num == 6:
+                current_user = None
+                print('로그아웃 되었습니다.')
+            # 프로그램 종료
+            elif menu_num == 0:
+                print('프로그램을 종료합니다.')
+                break
+            else:
+                print('잘못 입력하셨습니다.')
 
     conn = get_connection()
     drop_table(conn)
@@ -259,6 +394,329 @@ def main():
     create_comment_table(conn)
 
     conn.close()
+
+if __name__ == '__main__':
+    main()
+
+
+#%%
+import pymysql
+
+
+# 1. DB 연결
+def get_connection():
+    conn = pymysql.connect(
+        host="127.0.0.1",
+        user="root",
+        port=3306,
+        password="1234",  # 본인의 DB 비밀번호에 맞게 수정하세요.
+        database="mysqlDB",
+        charset="utf8"
+    )
+    return conn
+
+
+# 2. 테이블 만들기
+def create_user_table(conn):
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS userTable (   
+            id CHAR(10) PRIMARY KEY,
+            pwd CHAR(15) NOT NULL,
+            name CHAR(20) NOT NULL,
+            email CHAR(20),
+            addr CHAR(50)
+        )
+    """)
+    print('user_table 준비완료')
+    conn.commit()
+    cur.close()
+
+
+def create_board_table(conn):
+    cur = conn.cursor()
+    # 테이블 생성
+    cur.execute("""
+        CREATE TABLE boardTable (
+            board_no BIGINT PRIMARY KEY AUTO_INCREMENT,
+            title VARCHAR(100) NOT NULL,
+            contents TEXT NOT NULL,
+            board_writer CHAR(10) NOT NULL,
+            reg_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (board_writer) REFERENCES userTable(id)
+        )
+    """)
+
+    print('board_table 생성완료')
+
+    conn.commit()
+    cur.close()
+
+
+def create_comment_table(conn):
+    cur = conn.cursor()
+    # 테이블 생성
+    cur.execute("""
+        CREATE TABLE commentTable (
+            comment_no BIGINT PRIMARY KEY AUTO_INCREMENT,
+            board_no BIGINT NOT NULL,
+            comment_writer CHAR(10) NOT NULL,
+            comment VARCHAR(500) NOT NULL,
+            reg_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (board_no) REFERENCES boardTable(board_no) ON DELETE CASCADE,
+            FOREIGN KEY (comment_writer) REFERENCES userTable(id)
+        )
+    """)
+
+    print('comment_table 생성완료')
+
+    conn.commit()
+    cur.close()
+
+
+# 3. 기존 테이블 삭제하기
+def drop_table(conn):
+    cur = conn.cursor()
+
+    cur.execute("DROP TABLE IF EXISTS commentTable")
+    cur.execute("DROP TABLE IF EXISTS boardTable")
+
+    print('테이블 삭제 성공!')
+
+    conn.commit()
+    cur.close()
+
+
+# ==========================================
+# 게시판 기능 함수
+# ==========================================
+
+# 회원가입
+def signup(conn):
+    print("\n--- [회원가입] ---")
+    uid = input("아이디(10자 이내): ")
+    pw = input("비밀번호: ")
+    name = input("이름: ")
+
+    if not uid or not pw or not name:
+        print("모든 항목을 입력해 주세요.")
+        return
+
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM userTable WHERE id = %s", (uid,))
+    if cur.fetchone():
+        print("이미 존재하는 아이디입니다.")
+    else:
+        cur.execute("INSERT INTO userTable (id, pwd, name) VALUES (%s, %s, %s)", (uid, pw, name))
+        conn.commit()
+        print("회원가입 성공!")
+    cur.close()
+
+
+# 로그인
+def login(conn):
+    print("\n--- [로그인] ---")
+    uid = input("아이디: ")
+    pw = input("비밀번호: ")
+
+    cur = conn.cursor()
+    cur.execute("SELECT id, name FROM userTable WHERE id = %s AND pwd = %s", (uid, pw))
+    user = cur.fetchone()
+    cur.close()
+
+    if user:
+        print(f"\n{user[1]}님 환영합니다!")
+        return user[0]
+    else:
+        print("아이디 또는 비밀번호가 일치하지 않습니다.")
+        return None
+
+
+# 게시글 작성
+def write_post(conn, login_user):
+    print("\n--- [게시글 작성] ---")
+    title = input("제목: ")
+    contents = input("내용: ")
+
+    if not title or not contents:
+        print("제목과 내용을 모두 입력해 주세요.")
+        return
+
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO boardTable (title, contents, board_writer) VALUES (%s, %s, %s)",
+        (title, contents, login_user)
+    )
+    conn.commit()
+    cur.close()
+    print("게시글이 성공적으로 등록되었습니다.")
+
+
+# 게시글 목록 조회
+def list_posts(conn):
+    print("\n--- [게시글 목록] ---")
+    cur = conn.cursor()
+    query = """
+            SELECT b.board_no, b.title, u.name, b.board_writer, b.reg_date
+            FROM boardTable b
+                     JOIN userTable u ON b.board_writer = u.id
+            ORDER BY b.board_no DESC
+            """
+    cur.execute(query)
+    posts = cur.fetchall()
+    cur.close()
+
+    if not posts:
+        print("등록된 게시글이 없습니다.")
+    else:
+        for p in posts:
+            print(f"[{p[0]}] {p[1]} | 작성자: {p[2]}({p[3]}) | 작성일: {p[4]}")
+
+
+# 게시글 상세 조회
+def view_post(conn):
+    bno = input("\n상세 조회할 게시글 번호를 입력하세요: ")
+    if not bno.isdigit():
+        print("숫자만 입력해 주세요.")
+        return
+
+    cur = conn.cursor()
+    cur.execute("""
+                SELECT b.title, b.contents, u.name, b.board_writer, b.reg_date
+                FROM boardTable b
+                         JOIN userTable u ON b.board_writer = u.id
+                WHERE b.board_no = %s
+                """, (bno,))
+    post = cur.fetchone()
+
+    if not post:
+        print("존재하지 않는 게시글 번호입니다.")
+        cur.close()
+        return
+
+    print(f"\n=== {post[0]} ===")
+    print(f"작성자: {post[2]}({post[3]}) | 작성일: {post[4]}")
+    print(f"내용:\n{post[1]}\n" + "-" * 40)
+
+    cur.execute("""
+                SELECT u.name, c.comment_writer, c.comment, c.reg_date
+                FROM commentTable c
+                         JOIN userTable u ON c.comment_writer = u.id
+                WHERE c.board_no = %s
+                ORDER BY c.comment_no ASC
+                """, (bno,))
+    comments = cur.fetchall()
+    cur.close()
+
+    if comments:
+        print("[댓글 목록]")
+        for c in comments:
+            print(f"- {c[0]}({c[1]}): {c[2]} ({c[3]})")
+    else:
+        print("[등록된 댓글이 없습니다.]")
+
+
+# 댓글 작성
+def write_comment(conn, login_user):
+    print("\n--- [댓글 작성] ---")
+    bno = input("게시글 번호: ")
+
+    if not bno.isdigit():
+        print("올바른 게시글 번호를 입력해 주세요.")
+        return
+
+    cur = conn.cursor()
+    cur.execute("SELECT board_no FROM boardTable WHERE board_no = %s", (bno,))
+    if not cur.fetchone():
+        print("존재하지 않는 게시글 번호입니다.")
+        cur.close()
+        return
+
+    comment = input("댓글 내용: ")
+    if not comment:
+        print("댓글 내용을 입력해 주세요.")
+        cur.close()
+        return
+
+    cur.execute(
+        "INSERT INTO commentTable (board_no, comment_writer, comment) VALUES (%s, %s, %s)",
+        (bno, login_user, comment)
+    )
+    conn.commit()
+    cur.close()
+    print("댓글이 성공적으로 등록되었습니다.")
+
+
+# 게시글 삭제
+def delete_post(conn, login_user):
+    print("\n--- [게시글 삭제] ---")
+    bno = input("삭제할 게시글 번호: ")
+
+    if not bno.isdigit():
+        print("올바른 게시글 번호를 입력해 주세요.")
+        return
+
+    cur = conn.cursor()
+    cur.execute("SELECT board_writer FROM boardTable WHERE board_no = %s", (bno,))
+    post = cur.fetchone()
+
+    if not post:
+        print("존재하지 않는 게시글 번호입니다.")
+    elif post[0] != login_user:
+        print("권한이 없습니다. (본인이 작성한 글만 삭제 가능)")
+    else:
+        cur.execute("DELETE FROM boardTable WHERE board_no = %s", (bno,))
+        conn.commit()
+        print("게시글이 성공적으로 삭제되었습니다.")
+
+    cur.close()
+
+
+# 코드 실행
+def main():
+    conn = get_connection()
+
+    # 테이블 초기화 및 생성
+    drop_table(conn)
+    create_user_table(conn)
+    create_board_table(conn)
+    create_comment_table(conn)
+
+    login_user = None
+
+    while True:
+        if login_user is None:
+            choice = input("\n=== 메인 메뉴 ===\n1. 로그인 | 2. 회원가입 | 0. 프로그램 종료\n선택: ")
+            if choice == '1':
+                login_user = login(conn)
+            elif choice == '2':
+                signup(conn)
+            elif choice == '0':
+                break
+            else:
+                print("잘못된 입력입니다.")
+        else:
+            choice = input(
+                f"\n=== 게시판 메뉴 [{login_user}] ===\n1. 목록 | 2. 상세조회 | 3. 글작성 | 4. 댓글작성 | 5. 글삭제 | 6. 로그아웃\n선택: "
+            )
+            if choice == '1':
+                list_posts(conn)
+            elif choice == '2':
+                view_post(conn)
+            elif choice == '3':
+                write_post(conn, login_user)
+            elif choice == '4':
+                write_comment(conn, login_user)
+            elif choice == '5':
+                delete_post(conn, login_user)
+            elif choice == '6':
+                login_user = None
+                print("로그아웃 되었습니다.")
+            else:
+                print("잘못된 입력입니다.")
+
+    conn.close()
+
 
 if __name__ == '__main__':
     main()
