@@ -16,14 +16,13 @@ def create_board_table(conn):
             title VARCHAR(100) NOT NULL,
             contents TEXT NOT NULL,
             board_writer CHAR(10) NOT NULL,
-            reg_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            reg_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (board_writer) REFERENCES userTable(id)
         )
     """)
 
-    print('board_table 생성완료')
-
     conn.commit()
+    print('board_table 생성완료')
     cur.close()
 
 def create_comment_table(conn):
@@ -35,15 +34,14 @@ def create_comment_table(conn):
             board_no BIGINT NOT NULL,
             comment_writer CHAR(10) NOT NULL,
             comment VARCHAR(500) NOT NULL,
-            reg_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            reg_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (board_no) REFERENCES boardTable(board_no) ON DELETE CASCADE,
             FOREIGN KEY (comment_writer) REFERENCES userTable(id)
         )
     """)
 
-    print('comment_table 생성완료')
-
     conn.commit()
+    print('comment_table 생성완료')
     cur.close()
 
 # 3. 기존 테이블 삭제하기
@@ -53,10 +51,12 @@ def drop_table(conn):
     cur.execute("DROP TABLE IF EXISTS commentTable")
     cur.execute("DROP TABLE IF EXISTS boardTable")
 
-    print('테이블 삭제 성공!')
-
     conn.commit()
+
+    print('테이블 삭제 성공!')
     cur.close()
+
+
 
 # 코드 실행
 def main():
