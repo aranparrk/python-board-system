@@ -158,7 +158,27 @@ def write_post(conn, current_user):
 
 # 게시글 목록
 def list_posts(conn):
-    pass
+    cur = conn.cursor()
+
+    cur.execute(
+        '''
+        SELECT a.board_no, a.title, b.name, a.reg_date 
+        FROM boardTable a 
+        JOIN userTable b
+            ON a.board_writer = b.id 
+        ORDER BY a.board_no DESC
+        '''
+    )
+
+    rows = cur.fetchall()
+    if not rows:
+        print('등록된 게시글이 없습니다.')
+    else:
+        print('NO\t\t\t제목\t\t\t작성자\t\t\t작성일')
+        for row in rows:
+            print(f'{row[0]}\t\t{row[1]}\t\t{row[2]}\t\t{row[3]}')
+
+    cur.close()
 
 # 게시글 상세 조회
 def view_post(conn):
@@ -227,6 +247,9 @@ def main():
             # 게시글 작성
             if menu_num == 1:
                 write_post(conn, current_user)
+            # 게시글 조회
+            elif menu_num == 2:
+                list_posts(conn)
 
 
 
